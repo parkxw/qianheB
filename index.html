@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0e0803">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="仟和百家乐">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="bjl-icon-192.png">
+<link rel="icon" type="image/png" sizes="192x192" href="bjl-icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="bjl-icon-512.png">
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script>
+(function(){try{var a=JSON.parse(localStorage.getItem('bjl_auth')||'null');
+if(!a||!a.u){location.replace('login.html');return;}
+if(a.exp&&Date.now()>new Date(a.exp).getTime()){localStorage.removeItem('bjl_auth');location.replace('login.html');return;}
+}catch(e){location.replace('login.html');}})();
+</script>
+<title>仟和百家乐</title>
+<style>
+  /* 字体改用系统本地字体，不依赖网络，避免断网/无法访问Google时白屏卡死 */
+
+  :root{
+    --gold:#d4af37; --gold-bright:#f4d76a; --gold-dark:#8a6f1f; --gold-shine:#fff4c4;
+    --felt-deep:#0a5a2e; --felt:#117a3e; --felt-bright:#1a9850; --felt-edge:#063d1f;
+    --red:#e3242b; --red-bright:#ff3b3b; --red-glow:#ff6b6b;
+    --blue:#1565c0; --blue-bright:#2979ff; --blue-glow:#5b9bff;
+    --green:#2e9e3f; --green-glow:#5ed16a;
+    --ivory:#f5ecd4; --ivory-dim:#c4b890;
+    --panel:#0a0502;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;}
+  html,body{width:100%;height:100%;font-family:'Songti SC','STSong','Noto Serif SC',serif;color:var(--ivory);user-select:none;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;background:radial-gradient(ellipse 120% 120% at 50% 50%, var(--felt) 0%, var(--felt-deep) 55%, var(--felt-edge) 100%);}
+
+  /* Portrait rotate hint — 不再隐藏赌桌，避免空白；只在顶部给个可关闭提示 */
+  .rotate-hint{display:none;}
+  @media (orientation:portrait){
+    .rotate-tip{display:flex;}
+  }
+  .rotate-tip{display:none;position:fixed;top:0;left:0;right:0;z-index:9999;
+    background:linear-gradient(180deg,rgba(212,175,55,0.95),rgba(180,140,40,0.9));
+    color:#1a0a02;font-size:13px;font-weight:700;text-align:center;
+    padding:8px 12px;letter-spacing:1px;align-items:center;justify-content:center;gap:10px;
+    box-shadow:0 2px 10px rgba(0,0,0,0.5);}
+  .rotate-tip button{border:1px solid #1a0a02;background:transparent;color:#1a0a02;
+    border-radius:12px;padding:2px 10px;font-size:12px;font-weight:700;cursor:pointer;}
+
+  .table-wrap{
+    width:100vw;height:max(100vh,525px);position:relative;
+    overflow:hidden;display:flex;flex-direction:row-reverse;
+    background:
+      radial-gradient(ellipse 90% 130% at 50% 100%, var(--felt-bright) 0%, var(--felt) 30%, var(--felt-deep) 62%, var(--felt-edge) 100%);
+  }
+  .table-wrap::before{content:'';position:absolute;inset:0;background-image:repeating-linear-gradient(45deg,transparent,transparent 26px,rgba(255,255,255,0.012) 26px,rgba(255,255,255,0.012) 27px);pointer-events:none;}
+  .table-wrap::after{content:'';position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.45) 100%);z-index:50;}
+
+  /* ============ LEFT PANEL ============ */
+  .left-panel{
+    width:120px;flex-shrink:0;height:100%;
+    background:linear-gradient(180deg,#160a02,#0a0502);
+    border-left:2px solid var(--gold);
+    display:flex;flex-direction:column;
+    padding:8px 7px;gap:7px;z-index:10;
+    box-shadow:-4px 0 16px rgba(0,0,0,0.5);
+  }
+  .lp-title{text-align:center;}
+  .lp-title .cn{font-size:15px;font-weight:900;color:var(--gold-bright);letter-spacing:2px;}
+  .lp-title .en{font-family:Georgia,'Times New Roman',serif;font-size:7px;color:var(--gold-dark);letter-spacing:3px;}
+
+  /* table selector */
+  .lp-tablesel{display:flex;gap:3px;align-items:stretch;}
+  .ts-arrow{width:24px;flex-shrink:0;border:1px solid var(--gold-dark);background:rgba(0,0,0,0.4);color:var(--gold-bright);border-radius:6px;font-size:18px;font-weight:700;cursor:pointer;line-height:1;padding:0;}
+  .ts-arrow:active{background:var(--gold);color:#000;}
+  .ts-current{flex:1;min-width:0;border:1px solid var(--gold);background:linear-gradient(180deg,rgba(212,175,55,0.18),rgba(0,0,0,0.3));border-radius:6px;color:var(--gold-bright);font-family:inherit;cursor:pointer;padding:4px 2px;display:flex;flex-direction:column;align-items:center;gap:1px;}
+  .ts-current:active{filter:brightness(1.3);}
+  .ts-current #tsName{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+  .ts-idx{font-size:8px;color:var(--gold-dark);font-family:Georgia,'Times New Roman',serif;}
+  .lp-timer{
+    text-align:center;background:radial-gradient(circle,#1a8a4d,#0a5028);
+    border:2px solid var(--gold);border-radius:8px;padding:5px;
+    font-size:22px;font-weight:900;color:#fff;font-family:Georgia,'Times New Roman',serif;
+    text-shadow:0 0 10px rgba(255,255,255,0.4);
+    box-shadow:inset 0 0 12px rgba(0,0,0,0.4);
+  }
+  .lp-stats{background:rgba(0,0,0,0.3);border:1px solid var(--gold-dark);border-radius:7px;padding:6px;font-size:10px;display:flex;flex-direction:column;gap:3px;}
+  .lp-line{display:flex;justify-content:space-between;}
+  .lp-line .v{font-weight:700;}
+  .lp-line .b{color:var(--red-glow);} .lp-line .p{color:var(--blue-glow);} .lp-line .t{color:var(--green-glow);}
+  .lp-streak{margin-top:2px;text-align:center;font-size:10px;color:var(--gold-bright);border-top:1px solid rgba(212,175,55,0.25);padding-top:4px;}
+
+  /* Recommendation signal box */
+  .lp-reco{margin-top:6px;flex-shrink:0;border:2px solid #555;border-radius:9px;background:rgba(0,0,0,0.3);padding:6px 4px;text-align:center;transition:all 0.2s;}
+  .reco-label{font-size:9px;color:var(--gold-dark);letter-spacing:2px;}
+  .reco-pick{font-size:26px;font-weight:900;line-height:1.1;color:#888;}
+  .reco-info{font-size:9px;color:var(--ivory-dim);margin-top:1px;}
+  .lp-reco.side-B .reco-pick{color:#fff;}
+  .lp-reco.side-P .reco-pick{color:#fff;}
+  .lp-reco.lv1{border-color:#fff;animation:blinkW 1.2s ease-in-out infinite;}
+  @keyframes blinkW{0%,100%{background:rgba(255,255,255,0.15);box-shadow:0 0 6px rgba(255,255,255,0.5);}50%{background:rgba(255,255,255,0.9);box-shadow:0 0 26px rgba(255,255,255,1);}}
+  .lp-reco.lv2{border-color:#ffd23f;animation:blinkY 1.2s ease-in-out infinite;}
+  @keyframes blinkY{0%,100%{background:rgba(255,210,63,0.2);box-shadow:0 0 8px rgba(255,210,63,0.6);}50%{background:rgba(255,210,63,1);box-shadow:0 0 30px rgba(255,210,63,1);}}
+  .lp-reco.lv3{border-color:var(--red-bright);animation:blinkR 1.2s ease-in-out infinite;}
+  @keyframes blinkR{0%,100%{background:rgba(255,59,59,0.25);box-shadow:0 0 10px rgba(255,59,59,0.6);transform:scale(1);}50%{background:rgba(255,59,59,1);box-shadow:0 0 34px rgba(255,59,59,1);transform:scale(1.02);}}
+  .lp-reco.lv4{border-color:#c77dff;animation:blinkV 1.2s ease-in-out infinite;}
+  @keyframes blinkV{0%,100%{background:rgba(170,71,188,0.3);box-shadow:0 0 12px rgba(170,71,188,0.7);transform:scale(1);}50%{background:rgba(186,85,211,1);box-shadow:0 0 38px rgba(199,125,255,1);transform:scale(1.03);}}
+  .lp-reco.stopped{border-color:#ff3b3b;animation:stopBlink 0.8s ease-in-out infinite;}
+  .lp-reco.stopped .reco-pick{color:#fff;}
+  .lp-reco.stopped .reco-info{color:#fff;font-weight:900;}
+  @keyframes stopBlink{0%,100%{background:#5a0000;}50%{background:#c41616;}}
+  /* 庄/闲大按钮高亮 — 整框闪 */
+  .zone-reco-lv1{animation:zoneW 1.2s ease-in-out infinite;border-width:3px!important;}
+  @keyframes zoneW{0%,100%{background:rgba(255,255,255,0.1);box-shadow:0 0 12px rgba(255,255,255,0.6),inset 0 0 25px rgba(255,255,255,0.25);}50%{background:rgba(255,255,255,0.5);box-shadow:0 0 36px rgba(255,255,255,1),inset 0 0 45px rgba(255,255,255,0.7);}}
+  .zone-reco-lv2{animation:zoneY 1.2s ease-in-out infinite;border-width:3px!important;}
+  @keyframes zoneY{0%,100%{background:rgba(255,210,63,0.15);box-shadow:0 0 14px rgba(255,210,63,0.7),inset 0 0 25px rgba(255,210,63,0.3);}50%{background:rgba(255,210,63,0.65);box-shadow:0 0 40px rgba(255,210,63,1),inset 0 0 48px rgba(255,210,63,0.8);}}
+  .zone-reco-lv3{animation:zoneR 1.2s ease-in-out infinite;border-width:4px!important;}
+  @keyframes zoneR{0%,100%{background:rgba(255,59,59,0.2);box-shadow:0 0 16px rgba(255,59,59,0.8),inset 0 0 28px rgba(255,59,59,0.35);}50%{background:rgba(255,59,59,0.8);box-shadow:0 0 46px rgba(255,59,59,1),inset 0 0 52px rgba(255,59,59,0.85);}}
+  .zone-reco-lv4{animation:zoneV 1.2s ease-in-out infinite;border-width:4px!important;}
+  @keyframes zoneV{0%,100%{background:rgba(170,71,188,0.2);box-shadow:0 0 18px rgba(186,85,211,0.8),inset 0 0 30px rgba(170,71,188,0.4);}50%{background:rgba(186,85,211,0.85);box-shadow:0 0 50px rgba(199,125,255,1),inset 0 0 55px rgba(199,125,255,0.9);}}
+
+
+  /* history shoes */
+  .lp-history{margin-top:6px;display:flex;flex-direction:column;min-height:0;flex:1;}
+  .lph-title{font-size:10px;color:var(--gold-dark);letter-spacing:1px;margin-bottom:4px;text-align:center;font-weight:700;}
+  .lph-list{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:4px;min-height:40px;}
+  .lph-list::-webkit-scrollbar{width:3px;} .lph-list::-webkit-scrollbar-thumb{background:var(--gold-dark);border-radius:2px;}
+  .lph-empty{text-align:center;font-size:9px;color:var(--ivory-dim);opacity:0.5;padding:8px 0;}
+  .lph-row{display:flex;align-items:center;gap:4px;background:rgba(0,0,0,0.3);border:1px solid rgba(212,175,55,0.2);border-radius:6px;padding:4px 6px;font-size:9px;cursor:pointer;transition:all 0.12s;}
+  .lph-row:active{transform:scale(0.97);}
+  .lph-row .sh-no{color:var(--gold-bright);font-weight:700;flex-shrink:0;}
+  .lph-row .sh-stat{flex:1;display:flex;gap:5px;}
+  .lph-row .sh-b{color:var(--red-glow);} .lph-row .sh-p{color:var(--blue-glow);} .lph-row .sh-t{color:var(--green-glow);}
+  .lph-row .sh-view{color:var(--ivory-dim);flex-shrink:0;font-size:8px;}
+
+  .lp-export{border-color:var(--green)!important;color:var(--green-glow)!important;}
+  .lp-export:active{background:var(--green)!important;color:#fff!important;}
+  .lp-spacer{flex:1;}
+  .lp-newgame{
+    margin-top:7px;flex-shrink:0;
+    padding:12px 4px;border-radius:9px;
+    border:2px solid var(--red-bright);
+    background:linear-gradient(180deg,var(--red-bright),var(--red));
+    color:#fff;font-family:inherit;font-size:15px;font-weight:900;
+    letter-spacing:2px;cursor:pointer;transition:all 0.12s;
+    box-shadow:0 0 16px rgba(255,59,59,0.4),inset 0 1px 0 rgba(255,255,255,0.25);
+  }
+  .lp-newgame:active{transform:scale(0.95);filter:brightness(1.2);}
+  .lp-controls{display:flex;flex-direction:column;gap:6px;}
+  .lp-btn{padding:9px 4px;border-radius:8px;border:1.5px solid;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;background:rgba(0,0,0,0.4);transition:all 0.12s;letter-spacing:1px;}
+  .lp-btn:active{transform:scale(0.95);}
+  .lp-undo{border-color:var(--gold);color:var(--gold-bright);}
+  .lp-undo:active{background:var(--gold);color:#000;}
+  .lp-new{border-color:var(--red-bright);color:var(--red-glow);}
+  .lp-new:active{background:var(--red);color:#fff;}
+
+  /* ============ LEFT STACK: roads -> betting -> tabs ============ */
+  .left-stack{flex:1;min-width:0;height:100%;display:flex;flex-direction:column;padding:7px;gap:7px;z-index:5;overflow:hidden;}
+
+  /* ROADS area (top): main(big+derived) left | bead narrow column right */
+  .ls-roads{flex:0 0 auto;display:flex;flex-direction:row;gap:5px;
+    background:linear-gradient(180deg,#160a02,#0a0502);
+    border:1px solid var(--gold-dark);border-radius:10px;padding:6px;}
+  .roads-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px;}
+  .roads-main .big-screen{flex:0 0 66px;min-height:0;}
+  .ls-roads .lower-roads{flex:0 0 66px;min-height:0;display:flex;gap:5px;}
+  .lower-roads .bigeye-screen{flex:1;min-width:0;height:100%;}
+  .lower-roads .small-screen{flex:1;min-width:0;height:100%;}
+  .ls-roads .roach-row{flex:0 0 33px;min-height:0;display:flex;gap:5px;}
+  .roach-row .roach-screen{flex:1;min-width:0;height:100%;}
+  .ls-roads > .bead-screen{width:88px;flex-shrink:0;overflow:hidden;}
+
+  /* arc title (unused, kept harmless) */
+  .arc-title{display:none;}
+
+  /* BETTING block (middle) */
+  .bet-top{flex-shrink:0;display:flex;gap:6px;height:70px;}
+
+  /* middle holds two aligned rows spanning the same width */
+  .bet-mid{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;gap:5px;}
+  .mid-top{flex:1;min-height:0;display:grid;grid-template-columns:repeat(3,1fr);gap:7px;}
+  .mid-bot{flex:1;min-height:0;display:grid;grid-template-columns:repeat(4,1fr);gap:7px;}
+
+  /* uniform cell (对子/和/幸运/超级) */
+  .cell{
+    min-width:0;
+    border:2px solid var(--gold);border-radius:10px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    cursor:pointer;background:rgba(0,0,0,0.12);
+    color:var(--gold-bright);transition:all 0.12s;
+    position:relative;overflow:hidden;padding:2px 2px;
+  }
+  .cell:active{transform:scale(0.96);filter:brightness(1.4);}
+  .cell.is-active{box-shadow:0 0 0 2px #fff inset,0 0 16px currentColor;filter:brightness(1.5);}
+  .cell .ch{font-size:clamp(14px,2.2vw,22px);font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,0.6);line-height:1.05;}
+  .cell .nm{font-size:clamp(8px,1.1vw,10px);font-weight:900;text-shadow:0 0 10px currentColor,0 1px 2px rgba(0,0,0,0.7);line-height:1.05;text-align:center;}
+  .cell .po{font-size:clamp(8px,1.1vw,11px);opacity:0.85;margin-top:3px;text-align:center;line-height:1.15;font-family:Georgia,'Times New Roman',serif;}
+
+  /* big zones 闲/庄 — fixed width on outer edges, full height */
+  .zone-big{
+    width:22%;flex-shrink:0;height:100%;
+    border:3px solid;border-radius:12px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    cursor:pointer;background:rgba(0,0,0,0.12);transition:all 0.12s;
+    position:relative;overflow:hidden;
+  }
+  .zone-big:active{transform:scale(0.97);filter:brightness(1.4);}
+  .zone-big .ch{font-size:clamp(24px,4vw,40px);font-weight:900;text-shadow:0 0 24px currentColor,0 2px 4px rgba(0,0,0,0.6);}
+  .zone-big .po{font-size:7px;margin-top:3px;font-family:Georgia,'Times New Roman',serif;opacity:0.85;}
+
+  /* colors */
+  .pc-player{color:var(--blue-glow);border-color:var(--blue-bright);}
+  .pc-tie{color:var(--green-glow);border-color:var(--green);}
+  .pc-banker{color:var(--red-glow);border-color:var(--red-bright);}
+  .zone-player-big{color:var(--blue-glow);border-color:var(--blue-bright);box-shadow:inset 0 0 25px rgba(41,121,255,0.12),0 0 16px rgba(41,121,255,0.18);}
+  .zone-banker-big{color:var(--red-glow);border-color:var(--red-bright);box-shadow:inset 0 0 25px rgba(255,59,59,0.12),0 0 16px rgba(255,59,59,0.18);}
+  .lc-7{border-color:#ffa726;color:#ffcc80;}
+  .lc-s7{border-color:#ef5350;color:#ffab91;}
+  .lc-6{border-color:#ab47bc;color:#e1bee7;}
+  .lc-6b{border-color:#26a69a;color:#80cbc4;}
+
+  /* BOTTOM: 24 table tabs (8 per row, 3 rows) — compact, not stretched */
+  .bet-bottom{
+    flex:0 0 auto;
+    border:1px solid rgba(212,175,55,0.25);
+    border-radius:12px;
+    background:rgba(0,0,0,0.12);
+    padding:6px;
+    display:grid;
+    grid-template-columns:repeat(8,1fr);
+    grid-auto-rows:34px;
+    gap:5px;
+  }
+  .tbtab{
+    border:1.5px solid var(--gold-dark);
+    border-radius:7px;
+    background:rgba(0,0,0,0.25);
+    color:var(--ivory-dim);
+    cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    transition:all 0.12s;
+    position:relative;overflow:hidden;
+    padding:1px;min-width:0;min-height:0;
+  }
+  .tbtab:active{transform:scale(0.94);}
+  .tbtab .tname{font-size:clamp(9px,1.3vw,12px);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;line-height:1.05;}
+  .tbtab .tmeta{font-size:7.5px;opacity:0.6;margin-top:0;font-family:Georgia,'Times New Roman',serif;line-height:1.1;}
+  .tbtab.active{
+    border-color:var(--gold);
+    background:linear-gradient(180deg,rgba(212,175,55,0.25),rgba(0,0,0,0.3));
+    color:var(--gold-bright);
+    box-shadow:inset 0 0 12px rgba(212,175,55,0.2),0 0 10px rgba(212,175,55,0.3);
+  }
+  .tbtab.hot{border-color:var(--red-bright);}
+  .tbtab.hot .tmeta{color:var(--red-glow);opacity:0.9;}
+  /* add-table tab */
+  .tbtab.add{border-style:dashed;color:var(--gold);}
+  .tbtab.add .plus{font-size:18px;line-height:1;font-weight:300;}
+  .tbtab.empty-slot{border-style:dashed;border-color:rgba(212,175,55,0.15);background:rgba(0,0,0,0.08);cursor:default;}
+  .tbtab.empty-slot:active{transform:none;}
+
+  /* ============ ROAD SCREENS (inside ls-roads) ============ */
+  .road-screen{background:#f4f4f4;border-radius:5px;overflow:hidden;position:relative;box-shadow:inset 0 1px 3px rgba(0,0,0,0.2);border:1px solid #555;}
+  .road-label{position:absolute;top:2px;left:4px;font-size:8px;color:#777;font-weight:700;z-index:3;background:rgba(255,255,255,0.75);padding:0 4px;border-radius:2px;}
+  .road-grid{width:100%;height:100%;overflow-x:auto;overflow-y:hidden;display:grid;grid-auto-flow:column;grid-auto-columns:min-content;background:#f4f4f4;}
+  .road-grid::-webkit-scrollbar{height:0;}
+  .rcell{height:100%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;position:relative;border:1px solid #e4e4e4;box-sizing:border-box;}
+
+  /* 珠盘路格子: 固定小方格,不随容器拉大 */
+  #beadRoad{align-content:stretch;}
+  #beadRoad .rcell{height:100%;aspect-ratio:1;width:auto;}
+  #beadRoad .dot{font-size:7px;}
+  /* 大路格子: 限制最大尺寸,横向多显示,满了顺延滚动 */
+  #bigRoad{align-content:start;}
+  #bigRoad .rcell{height:11px;width:11px;aspect-ratio:auto;}
+  .big-screen{width:100%;}
+
+  .dot{width:84%;height:84%;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:900;color:#fff;position:relative;text-shadow:0 1px 1px rgba(0,0,0,0.5);}
+  .dot-b{background:radial-gradient(circle at 32% 26%,#ff8a8a,#ff3b3b 30%,#d31616 65%,#8a0000);box-shadow:inset 0 -2px 4px rgba(0,0,0,0.35),inset 0 1px 3px rgba(255,255,255,0.45);}
+  .dot-p{background:radial-gradient(circle at 32% 26%,#8ec2ff,#2979ff 30%,#1257c4 65%,#06296e);box-shadow:inset 0 -2px 4px rgba(0,0,0,0.35),inset 0 1px 3px rgba(255,255,255,0.45);}
+  .dot-t{background:radial-gradient(circle at 32% 26%,#9be8a4,#5ed16a 30%,#2e9e3f 65%,#155c20);box-shadow:inset 0 -2px 4px rgba(0,0,0,0.35),inset 0 1px 3px rgba(255,255,255,0.45);}
+
+  .ring{width:86%;height:86%;border-radius:50%;border:2px solid;position:relative;display:flex;align-items:center;justify-content:center;background:transparent;box-sizing:border-box;}
+  .ring-b{border-color:var(--red);}
+  .ring-p{border-color:var(--blue);}
+  .tie-slash{position:absolute;width:128%;height:2px;background:var(--green);transform:rotate(-45deg);}
+
+  /* 大眼路: solid filled dots */
+  .solid-dot{width:78%;height:78%;border-radius:50%;}
+  .solid-b{background:radial-gradient(circle at 35% 30%,#ff7a7a,#d31616);box-shadow:0 1px 2px rgba(0,0,0,0.3);}
+  .solid-p{background:radial-gradient(circle at 35% 30%,#7ab4ff,#1257c4);box-shadow:0 1px 2px rgba(0,0,0,0.3);}
+
+  /* 蟑螂路: 每格两条平行短斜线,细、分开、清晰 */
+  .slash-mark{width:78%;height:78%;position:relative;background:transparent;margin:auto;}
+  .slash-mark::before,.slash-mark::after{content:'';position:absolute;left:14%;width:74%;height:1px;transform:rotate(-45deg);transform-origin:center;}
+  .slash-mark::before{top:22%;}
+  .slash-mark::after{top:78%;}
+  .slash-b::before,.slash-b::after{background:#d31616;}
+  .slash-p::before,.slash-p::after{background:#1257c4;}
+
+  .badge-bp{position:absolute;top:-2px;right:-2px;width:7px;height:7px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#ff8a8a,#d31616);border:1px solid #fff;z-index:2;}
+  .badge-pp{position:absolute;bottom:-2px;left:-2px;width:7px;height:7px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#8ec2ff,#1257c4);border:1px solid #fff;z-index:2;}
+  .badge-6{position:absolute;top:-4px;left:-4px;font-size:7px;background:linear-gradient(135deg,#ab47bc,#6a1b9a);color:#fff;border-radius:50%;width:10px;height:10px;display:flex;align-items:center;justify-content:center;font-weight:900;border:1px solid #fff;z-index:2;}
+  .badge-7{position:absolute;bottom:-4px;right:-4px;font-size:7px;background:linear-gradient(135deg,#ffa726,#e65100);color:#fff;border-radius:50%;width:10px;height:10px;display:flex;align-items:center;justify-content:center;font-weight:900;border:1px solid #fff;z-index:2;}
+
+  /* Modal & toast */
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+  .modal-overlay.active{display:flex;}
+
+  /* ===== 回测面板 ===== */
+  .lp-backtest{border-color:var(--gold);color:var(--gold-bright);background:rgba(212,175,55,0.12);margin-top:6px;}
+  .bt-panel{width:min(94vw,720px);max-height:92vh;display:flex;flex-direction:column;background:linear-gradient(160deg,#10241c,#08130e);border:2px solid var(--gold);border-radius:14px;box-shadow:0 12px 44px rgba(0,0,0,0.6);overflow:hidden;}
+  .bt-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid rgba(212,175,55,0.3);flex-shrink:0;}
+  .bt-title{font-size:16px;font-weight:900;color:var(--gold-bright);letter-spacing:1px;}
+  .bt-close{padding:6px 12px;border-radius:8px;border:1.5px solid #888;background:rgba(0,0,0,0.4);color:#ddd;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;}
+  .bt-close:active{transform:scale(0.95);}
+  .bt-scope{display:flex;gap:8px;padding:12px 16px 2px;flex-shrink:0;}
+  .bt-tab{flex:1;padding:9px 4px;border-radius:9px;border:1.5px solid rgba(212,175,55,0.4);background:rgba(0,0,0,0.3);color:var(--ivory-dim);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.15s;}
+  .bt-tab.is-on{background:rgba(212,175,55,0.18);border-color:var(--gold);color:var(--gold-bright);}
+  .bt-body{padding:12px 16px 4px;overflow-y:auto;}
+  .bt-stat{margin-bottom:13px;}
+  .bt-stat-top{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:5px;}
+  .bt-name{font-size:14px;font-weight:700;color:var(--ivory);}
+  .bt-rate{font-size:18px;font-weight:900;color:var(--c,#ffd700);}
+  .bt-stat.big{padding:12px 14px;background:rgba(0,0,0,0.28);border:1px solid rgba(212,175,55,0.35);border-radius:11px;}
+  .bt-stat.big .bt-name{font-size:15px;}
+  .bt-stat.big .bt-rate{font-size:32px;}
+  .bt-bar{height:10px;border-radius:6px;background:rgba(255,255,255,0.08);overflow:hidden;}
+  .bt-bar-fill{height:100%;border-radius:6px;background:var(--c,#ffd700);}
+  .bt-sub{font-size:11px;color:var(--ivory-dim);margin-top:4px;}
+  .bt-sec{font-size:11px;color:var(--gold-dark);letter-spacing:2px;margin:6px 0 8px;}
+  .bt-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:4px;}
+  .bt-grid.two{grid-template-columns:1fr 1fr;}
+  .bt-grid .bt-stat{margin-bottom:2px;}
+  .bt-empty{text-align:center;color:var(--ivory-dim);font-size:13px;padding:44px 10px;line-height:1.8;}
+  .bt-note{font-size:10px;color:var(--ivory-dim);opacity:0.75;padding:8px 16px 12px;line-height:1.5;border-top:1px solid rgba(255,255,255,0.06);margin-top:2px;flex-shrink:0;}
+  /* table manager */
+  .tm-list{max-height:260px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-bottom:10px;}
+  .tm-list::-webkit-scrollbar{width:3px;} .tm-list::-webkit-scrollbar-thumb{background:var(--gold-dark);border-radius:2px;}
+  .tm-row{display:flex;align-items:center;gap:6px;padding:7px 8px;border:1px solid var(--gold-dark);border-radius:8px;background:rgba(0,0,0,0.3);}
+  .tm-row.cur{border-color:var(--gold);background:linear-gradient(180deg,rgba(212,175,55,0.15),rgba(0,0,0,0.3));}
+  .tm-name{flex:1;background:transparent;border:none;border-bottom:1px solid transparent;color:var(--ivory);font-family:inherit;font-size:14px;font-weight:700;outline:none;min-width:0;}
+  .tm-name:focus{border-bottom-color:var(--gold);}
+  .tm-meta{font-size:10px;color:var(--ivory-dim);white-space:nowrap;}
+  .tm-go{padding:5px 10px;border-radius:14px;border:1px solid var(--blue-bright);color:var(--blue-glow);background:rgba(0,0,0,0.3);font-family:inherit;font-size:11px;cursor:pointer;flex-shrink:0;}
+  .tm-go:active{background:var(--blue);color:#fff;}
+  .tm-go.cur{border-color:var(--green);color:var(--green-glow);}
+  .tm-del{width:26px;flex-shrink:0;border:1px solid var(--red-bright);color:var(--red-glow);background:rgba(0,0,0,0.3);border-radius:14px;font-size:13px;cursor:pointer;padding:4px 0;}
+  .tm-del:active{background:var(--red);color:#fff;}
+  .tm-add{width:100%;padding:10px;border:1.5px dashed var(--gold);border-radius:8px;background:rgba(212,175,55,0.06);color:var(--gold-bright);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:2px;}
+  .tm-add:active{background:var(--gold);color:#000;}
+  .tm-add:disabled{opacity:0.4;cursor:not-allowed;}
+  .modal{background:linear-gradient(135deg,#1a0d05,#0a0502);border:2px solid var(--gold);border-radius:14px;padding:24px;width:300px;text-align:center;}
+  .modal-title{font-size:16px;color:var(--gold-bright);margin-bottom:8px;font-weight:700;letter-spacing:3px;font-family:Georgia,'Times New Roman',serif;}
+  .modal-body{font-size:13px;color:var(--ivory);margin-bottom:18px;line-height:1.6;}
+  .modal-btns{display:flex;gap:10px;}
+  .modal-btn{flex:1;padding:11px;border-radius:8px;border:1.5px solid;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:2px;}
+  .modal-confirm{background:linear-gradient(180deg,var(--red-bright),var(--red));border-color:var(--red);color:#fff;}
+  .modal-cancel{background:transparent;border-color:rgba(212,175,55,0.4);color:var(--gold-bright);}
+
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(30px);opacity:0;background:linear-gradient(135deg,#1a0d05,#0a0502);border:1px solid var(--gold);border-radius:30px;padding:10px 26px;font-size:13px;color:var(--gold-bright);z-index:300;transition:all 0.3s;white-space:nowrap;pointer-events:none;letter-spacing:2px;box-shadow:0 8px 24px rgba(0,0,0,0.6);}
+  .toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
+
+  @keyframes pulse-glow{0%{transform:scale(1);}50%{transform:scale(1.4);filter:brightness(1.5);}100%{transform:scale(1);}}
+  .pulsing{animation:pulse-glow 0.4s ease;}
+</style>
+</head>
+<body>
+
+<div class="rotate-tip" id="rotateTip">
+  <span>📱 建议横屏使用，体验更佳</span>
+  <button onclick="document.getElementById('rotateTip').style.display='none'">知道了</button>
+</div>
+
+<div class="table-wrap">
+
+  <!-- LEFT PANEL -->
+  <div class="left-panel">
+    <!-- 1. 新开局 -->
+    <button class="lp-newgame" onclick="showClearModal()">✕ 新开局</button>
+
+    <!-- 2. 撤销 -->
+    <button class="lp-btn lp-undo" onclick="undoLast()">↩ 撤销</button>
+
+    <!-- 3. 推荐 -->
+    <div class="lp-streak">连 <span id="streakInfo">—</span> · 第<span id="shoeNum">1</span>靴</div>
+    <div class="lp-reco" id="lpReco">
+      <div class="reco-label">推荐</div>
+      <div class="reco-pick" id="recoPick">—</div>
+      <div class="reco-info" id="recoInfo">观察中</div>
+    </div>
+
+    <!-- 4. 台号 -->
+    <div class="lp-tablesel">
+      <button class="ts-arrow" onclick="cycleTable(-1)">‹</button>
+      <button class="ts-current" id="tsCurrent" onclick="openTableMgr()">
+        <span id="tsName">1号台</span>
+        <span class="ts-idx" id="tsIdx">1/1</span>
+      </button>
+      <button class="ts-arrow" onclick="cycleTable(1)">›</button>
+    </div>
+
+    <!-- 5. 局数 -->
+    <div class="lp-timer" id="roundNum">—</div>
+    <div class="lp-stats">
+      <div class="lp-line"><span>总局</span><span class="v" id="totalCount">0</span></div>
+      <div class="lp-line"><span class="b">庄</span><span class="v b" id="bCount">0</span></div>
+      <div class="lp-line"><span class="p">闲</span><span class="v p" id="pCount">0</span></div>
+      <div class="lp-line"><span class="t">和</span><span class="v t" id="tCount">0</span></div>
+      <div class="lp-line" style="margin-top:3px;border-top:1px solid rgba(212,175,55,0.2);padding-top:3px;"><span>庄对</span><span class="v b" id="bpCount">0</span></div>
+      <div class="lp-line"><span>闲对</span><span class="v p" id="ppCount">0</span></div>
+    </div>
+
+    <!-- 6. 导出备份 / 回测 -->
+    <button class="lp-btn lp-export" onclick="exportData()">⭳ 导出备份</button>
+    <button class="lp-btn lp-backtest" onclick="openBacktest()">📊 回测命中率</button>
+
+    <!-- 历史靴(保留,放最下) -->
+    <div class="lp-history">
+      <div class="lph-title">历史靴 <span id="lphCount">(0)</span></div>
+      <div class="lph-list" id="lphList"><div class="lph-empty">暂无存档</div></div>
+    </div>
+  </div>
+
+  <!-- LEFT STACK: roads (top) -> betting (mid) -> table tabs (bottom) -->
+  <div class="left-stack">
+
+    <!-- ROADS: 左边主盘(大路/小路+大眼/蟑螂三排) | 右边珠盘路(整列到底) -->
+    <div class="ls-roads">
+      <div class="roads-main">
+        <div class="road-screen big-screen">
+          <div class="road-grid" id="bigRoad" style="grid-template-rows:repeat(6,11px);"></div>
+        </div>
+        <div class="lower-roads">
+          <div class="road-screen small-screen">
+            <div class="road-grid" id="smallRoad" style="grid-template-rows:repeat(6,11px);"></div>
+          </div>
+          <div class="road-screen bigeye-screen">
+            <div class="road-grid" id="bigEye" style="grid-template-rows:repeat(6,11px);"></div>
+          </div>
+        </div>
+        <div class="lower-roads roach-row">
+          <div class="road-screen roach-screen">
+            <div class="road-grid" id="roach" style="grid-template-rows:repeat(3,11px);"></div>
+          </div>
+          <div class="road-screen roach-screen">
+            <div class="road-grid" id="roach2" style="grid-template-rows:repeat(3,11px);"></div>
+          </div>
+        </div>
+      </div>
+      <div class="road-screen bead-screen">
+        <div class="road-grid" id="beadRoad" style="grid-template-rows:repeat(11,1fr);"></div>
+      </div>
+    </div>
+
+    <!-- BETTING ZONES -->
+    <div class="bet-top">
+      <div class="zone-big zone-player-big" id="zoneP" onclick="addResult('P')">
+        <span class="ch">闲</span><span class="po">1 : 1</span>
+      </div>
+      <div class="bet-mid">
+        <div class="mid-top">
+          <div class="cell pc-player" id="cell-pp" onclick="toggleSide('pp')">
+            <span class="ch">闲对子</span><span class="po">1 : 11</span>
+          </div>
+          <div class="cell pc-tie" onclick="addResult('T')">
+            <span class="ch">和</span><span class="po">1 : 8</span>
+          </div>
+          <div class="cell pc-banker" id="cell-bp" onclick="toggleSide('bp')">
+            <span class="ch">庄对子</span><span class="po">1 : 11</span>
+          </div>
+        </div>
+      </div>
+      <div class="zone-big zone-banker-big" id="zoneB" onclick="addResult('B')">
+        <span class="ch">庄</span><span class="po">1 : 0.95</span>
+      </div>
+    </div>
+
+    <!-- TABLE TABS (24) -->
+    <div class="bet-bottom" id="customArea"></div>
+
+  </div>
+
+</div>
+
+<div class="modal-overlay" id="clearModal">
+  <div class="modal">
+    <div class="modal-title">新开局</div>
+    <div class="modal-body">确定开始新一局吗？<br>当前这一局会自动存入历史靴，<br>然后清空开始新记录。</div>
+    <div class="modal-btns">
+      <button class="modal-btn modal-confirm" onclick="confirmClear()">确认</button>
+      <button class="modal-btn modal-cancel" onclick="hideClearModal()">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- Table manager modal -->
+<div class="modal-overlay" id="tableMgrModal">
+  <div class="modal" style="width:340px;">
+    <div class="modal-title">台号管理 · 改名/清空</div>
+    <div class="tm-list" id="tmList"></div>
+    <div class="modal-btns" style="margin-top:14px;">
+      <button class="modal-btn modal-cancel" style="flex:1;" onclick="closeMgr()">关闭</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Backtest modal -->
+<div class="modal-overlay" id="backtestModal">
+  <div class="bt-panel">
+    <div class="bt-head">
+      <span class="bt-title">📊 信号回测 · 命中率</span>
+      <button class="bt-close" onclick="closeBacktest()">✕ 关闭</button>
+    </div>
+    <div class="bt-scope">
+      <button class="bt-tab is-on" id="btScopeCur" onclick="setBtScope('cur')">本台当前靴</button>
+      <button class="bt-tab" id="btScopeAll" onclick="setBtScope('all')">全部台累计</button>
+    </div>
+    <div class="bt-body" id="btBody"></div>
+    <div class="bt-note">按推荐引擎逐局复盘：每局推荐与下一局实际开牌对比；和局不计入(押注退回)。仅为历史统计，不代表未来 —— 百家乐长期看无必胜法，仅供参考控注。</div>
+  </div>
+</div>
+
+<script>
+  var results=[]; var shoe=1; var viewingShoe=false;
+  var LABELS={B:'庄',P:'闲',T:'和'};
+  var MAX_TABLES=24;
+
+  // Multi-table store. Active table's data is mirrored into results/shoe so
+  // all existing render functions keep working unchanged.
+  var store={tables:[], activeId:null, nextId:1};
+
+  function load(){
+    try{
+      var d=JSON.parse(localStorage.getItem('baccarat_multi_v8')||'null');
+      if(d&&d.tables&&d.tables.length){store=d;}
+    }catch(e){}
+    // first run: create all 24 tables up front so every slot has a number
+    if(!store.tables||!store.tables.length){
+      // migrate old data into table 1 if present
+      var oldResults=[],oldShoe=1;
+      try{
+        var od=JSON.parse(localStorage.getItem('baccarat_multi_v7')||'null');
+        if(od&&od.tables&&od.tables[0]){oldResults=od.tables[0].results||[];oldShoe=od.tables[0].shoe||1;}
+        else{var o6=JSON.parse(localStorage.getItem('baccarat_v6')||'{}');if(o6.results){oldResults=o6.results;oldShoe=o6.shoe||1;}}
+      }catch(e){}
+      var tables=[];
+      for(var i=1;i<=MAX_TABLES;i++){
+        tables.push({id:i,name:i+'号台',results:(i===1?oldResults:[]),shoe:(i===1?oldShoe:1)});
+      }
+      store={tables:tables,activeId:1,nextId:MAX_TABLES+1};
+      persist();
+    }
+    // safety: ensure we always have exactly MAX_TABLES, fill any missing
+    if(store.tables.length<MAX_TABLES){
+      var have={};store.tables.forEach(function(t){have[t.id]=true;});
+      for(var j=1;j<=MAX_TABLES;j++){if(!have[j])store.tables.push({id:j,name:j+'号台',results:[],shoe:1});}
+      store.tables.sort(function(a,b){return a.id-b.id;});
+      persist();
+    }
+    if(store.activeId===null||!getTable(store.activeId)) store.activeId=store.tables[0].id;
+    loadActive();
+  }
+  function persist(){localStorage.setItem('baccarat_multi_v8',JSON.stringify(store));}
+  function getTable(id){for(var i=0;i<store.tables.length;i++){if(store.tables[i].id===id)return store.tables[i];}return null;}
+  function activeTable(){return getTable(store.activeId);}
+
+  // copy active table into working vars
+  function loadActive(){
+    var t=activeTable();
+    results=t?t.results:[];
+    shoe=t?(t.shoe||1):1;
+  }
+  // write working vars back to active table, then persist
+  function save(){
+    var t=activeTable();
+    if(t){t.results=results;t.shoe=shoe;}
+    persist();
+    updateTableSelector();
+  }
+
+  /* ===== table selector / management ===== */
+  function updateTableSelector(){
+    var t=activeTable();
+    var idx=0;for(var i=0;i<store.tables.length;i++){if(store.tables[i].id===store.activeId){idx=i;break;}}
+    document.getElementById('tsName').textContent=t?t.name:'—';
+    document.getElementById('tsIdx').textContent=(idx+1)+'/'+store.tables.length;
+    renderTableTabs();
+  }
+
+  // 24-slot grid of table tabs — every slot is a real numbered table
+  function renderTableTabs(){
+    var area=document.getElementById('customArea');
+    if(!area)return;
+    var html='';
+    for(var s=0;s<store.tables.length;s++){
+      var t=store.tables[s];
+      // current streak for hot marker
+      var st=null,sc=0;
+      for(var i=t.results.length-1;i>=0;i--){var rt=t.results[i].type;if(rt==='T')continue;if(!st){st=rt;sc=1;}else if(rt===st)sc++;else break;}
+      var hot=sc>=4;
+      var cur=t.id===store.activeId;
+      html+='<div class="tbtab'+(cur?' active':'')+(hot?' hot':'')+'" onclick="tabSwitch('+t.id+')">'+
+        '<span class="tname">'+escapeHtml(t.name)+'</span>'+
+        '<span class="tmeta">'+t.results.length+'局'+(hot?(' · '+LABELS[st]+sc):'')+'</span>'+
+      '</div>';
+    }
+    area.innerHTML=html;
+  }
+  function escapeHtml(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  function tabSwitch(id){if(id!==store.activeId)switchTable(id);}
+  function cycleTable(dir){
+    if(store.tables.length<=1){showToast('只有一个盘');return;}
+    var idx=0;for(var i=0;i<store.tables.length;i++){if(store.tables[i].id===store.activeId){idx=i;break;}}
+    idx=(idx+dir+store.tables.length)%store.tables.length;
+    switchTable(store.tables[idx].id);
+  }
+  function switchTable(id){
+    if(viewingShoe){viewingShoe=false;loadActive();}  // discard archive preview, restore live
+    save();                 // save current working vars to current table
+    store.activeId=id;
+    persist();
+    loadActive();
+    updateTableSelector();
+    render();
+    var t=activeTable();
+    showToast('切换到 '+(t?t.name:''));
+  }
+  function openTableMgr(){renderMgr();document.getElementById('tableMgrModal').classList.add('active');}
+  function closeMgr(){document.getElementById('tableMgrModal').classList.remove('active');}
+  function renderMgr(){
+    var list=document.getElementById('tmList');
+    var html='';
+    store.tables.forEach(function(t){
+      var cur=t.id===store.activeId;
+      html+='<div class="tm-row'+(cur?' cur':'')+'">'+
+        '<input class="tm-name" value="'+escapeAttr(t.name)+'" onchange="mgrRename('+t.id+',this.value)">'+
+        '<span class="tm-meta">'+t.results.length+'局</span>'+
+        '<button class="tm-go'+(cur?' cur':'')+'" onclick="mgrGo('+t.id+')">'+(cur?'当前':'进入')+'</button>'+
+        '<button class="tm-del" onclick="mgrClearTable('+t.id+')" title="清空记录">⟲</button>'+
+      '</div>';
+    });
+    list.innerHTML=html;
+  }
+  function mgrRename(id,name){var t=getTable(id);if(t){t.name=(name||'').trim()||t.name;persist();updateTableSelector();renderMgr();}}
+  function mgrGo(id){closeMgr();if(id!==store.activeId)switchTable(id);}
+  function mgrClearTable(id){
+    var t=getTable(id);if(!t)return;
+    if(!t.results.length){showToast('该台无记录');return;}
+    if(!confirm('清空「'+t.name+'」的所有记录？'))return;
+    t.results=[];t.shoe=1;
+    if(id===store.activeId){loadActive();render();}
+    persist();renderMgr();updateTableSelector();showToast('已清空 '+t.name);
+  }
+  function escapeAttr(s){return String(s).replace(/"/g,'&quot;').replace(/</g,'&lt;');}
+
+  /* Side bets: bp,pp,l6,l7,s6,s7 attached to last result */
+  function toggleSide(id){
+    if(!results.length){showToast('请先记录庄/闲/和');return;}
+    var last=results[results.length-1];
+    last[id]=!last[id];
+    var names={bp:'庄对',pp:'闲对',l6:'幸运6',l7:'幸运7',s6:'超级幸运6',s7:'超级幸运7'};
+    showToast(names[id]+(last[id]?' +':' 取消'));
+    save(); render();
+  }
+
+  function addResult(type){
+    if(viewingShoe){exitShoeView();}
+    results.push({type:type,bp:false,pp:false,l6:false,l7:false,s6:false,s7:false,ts:Date.now()});
+    save(); render();
+    showToast(LABELS[type]+' 已记录');
+    flashLastBead();
+  }
+  function flashLastBead(){
+    setTimeout(function(){
+      var dots=document.querySelectorAll('#beadRoad .dot');
+      if(dots.length){var l=dots[dots.length-1];l.classList.add('pulsing');setTimeout(function(){l.classList.remove('pulsing');},420);}
+    },30);
+  }
+  function undoLast(){
+    if(viewingShoe){exitShoeView();showToast('已返回当前靴');return;}
+    if(!results.length){showToast('无记录可撤销');return;}
+    var r=results.pop(); save(); render(); showToast('已撤销 '+LABELS[r.type]);
+  }
+  function exitShoeView(){viewingShoe=false;loadActive();}
+  function showClearModal(){if(!results.length){showToast('当前无记录');return;}document.getElementById('clearModal').classList.add('active');}
+  function hideClearModal(){document.getElementById('clearModal').classList.remove('active');}
+  function confirmClear(){
+    var t=activeTable();
+    if(t&&results.length){
+      if(!t.history)t.history=[];
+      // count stats for the archived shoe
+      var b=0,p=0,ti=0;
+      for(var i=0;i<results.length;i++){var x=results[i].type;if(x==='B')b++;else if(x==='P')p++;else ti++;}
+      t.history.unshift({shoe:shoe,results:results.slice(),b:b,p:p,t:ti,ts:Date.now()});
+    }
+    results=[];shoe++;save();render();hideClearModal();showToast('已开始第 '+shoe+' 局');
+  }
+  function showToast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(function(){t.classList.remove('show');},1600);}
+
+  // render history shoes list for current table
+  function renderHistoryShoes(){
+    var t=activeTable();
+    var listEl=document.getElementById('lphList');
+    var cntEl=document.getElementById('lphCount');
+    var hist=(t&&t.history)?t.history:[];
+    cntEl.textContent='('+hist.length+')';
+    if(!hist.length){listEl.innerHTML='<div class="lph-empty">暂无存档</div>';return;}
+    var html='';
+    for(var i=0;i<hist.length;i++){
+      var h=hist[i];
+      html+='<div class="lph-row" onclick="viewShoe('+i+')">'+
+        '<span class="sh-no">第'+h.shoe+'靴</span>'+
+        '<span class="sh-stat"><span class="sh-b">庄'+h.b+'</span><span class="sh-p">闲'+h.p+'</span><span class="sh-t">和'+h.t+'</span></span>'+
+        '<span class="sh-view">'+h.results.length+'局›</span>'+
+      '</div>';
+    }
+    listEl.innerHTML=html;
+  }
+  // load an archived shoe back into view (read-only browse)
+  function viewShoe(idx){
+    var t=activeTable();
+    if(!t||!t.history||!t.history[idx])return;
+    var h=t.history[idx];
+    viewingShoe=true;
+    results=h.results.slice();
+    render();
+    showToast('查看 第'+h.shoe+'靴存档 · 点撤销返回');
+  }
+
+  function render(){renderStats();renderBeadRoad();var big=buildBigRoad();renderBigRoad(big);renderDerived(big);renderActiveSides();renderHistoryShoes();renderRecommendation();}
+
+  /* ===== 推荐逻辑 (V1.6) =====
+     起算: 前8局忽略,第9局为起点(第9局为和则顺延)。和(T)全程忽略。
+     触发形态: BPBB / PBPP(跳跳连)。结尾"双数边"=开三次那一边(X)。
+     形态触发/升级后 -> 进入"跟"(开什么推什么,首推=双数边X):
+       - 首手就跟中(同方向继续开)= 一条龙 -> 一直推同一边,直到龙断(开出相反)-> 本轮结束,回观察重新计次;
+       - 首手没跟中(来回跳)= chop -> 继续开什么推什么,等形态之后凑出 BPB/PBP(连续3手交替)-> 切"推跳"(推上一把相反)。
+     推跳期间: 跳继续就一路推跳; 跳没来凑成新形态 ->
+       新形态双数边与上一形态相反=相接,升一级(最高三级),回到"跟";相同=重新计次从一级。
+     满54局停止推荐。 */
+  function computeRecommendation(R){
+    R = R || results;
+    if(R.length>54) return {level:0,pick:null,stopped:true};
+    if(R.length<9) return {level:0,pick:null};
+    var anchor=8;
+    while(anchor<R.length && R[anchor].type==='T') anchor++;
+    if(anchor>=R.length) return {level:0,pick:null};
+    var seq=[];
+    for(var i=anchor;i<R.length;i++){ if(R[i].type==='T')continue; seq.push(R[i].type); }
+    if(seq.length<4) return {level:0,pick:null};
+
+    // XYXX(跳跳连)是否在下标 k 处刚好成立
+    function formAt(k){
+      if(k<3) return false;
+      var w=seq[k-3],x=seq[k-2],y=seq[k-1],z=seq[k];
+      return (w!==x)&&(x!==y)&&(y===z);
+    }
+
+    var active=false;   // 是否有活动信号
+    var level=0;        // 当前级别 1..3
+    var mode='';        // 'follow'跟 / 'jump'跳
+    var sub='';         // 跟的子态: 'pending'(刚触发) / 'streak'(一条龙) / 'chop'(来回跳)
+    var dbl='';         // 当前形态的双数边
+    var formIdx=-1;     // 当前形态成立的下标
+
+    for(var k=0;k<seq.length;k++){
+      if(formAt(k)){
+        var newDbl=seq[k];
+        if(!active){ level=1; }
+        else if(newDbl!==dbl){ level=Math.min(level+1,3); } // 主边相反->相接,升级
+        else { level=1; }                                   // 主边相同->重新计次从一级
+        active=true; mode='follow'; sub='pending'; dbl=newDbl; formIdx=k;
+        continue;
+      }
+      if(!active) continue;
+      if(mode==='follow'){
+        if(k===formIdx+1){ sub=(seq[k]===dbl)?'streak':'chop'; } // 首手定:跟中=龙,没中=跳
+        if(sub==='streak'){
+          if(seq[k]!==seq[k-1]){ active=false; continue; }      // 龙断 -> 本轮结束,回观察
+        } else if(sub==='chop'){
+          // 形态之后凑出 BPB/PBP(连续3手交替,且都在形态之后)-> 切推跳
+          if(k>=formIdx+3 && seq[k]!==seq[k-1] && seq[k-1]!==seq[k-2]){ mode='jump'; }
+        }
+      }
+      // jump 模式只需保持;期间成立新形态已在上面 formAt 分支处理
+    }
+
+    if(!active) return {level:0,pick:null};
+    var last=seq[seq.length-1];
+    var pick=(mode==='jump') ? (last==='B'?'P':'B') : last; // 跳=推反面; 跟=推同边
+    return {level:level,pick:pick,mode:mode};
+  }
+
+  function renderRecommendation(){
+    var box=document.getElementById('lpReco');
+    var pickEl=document.getElementById('recoPick');
+    var infoEl=document.getElementById('recoInfo');
+    var zoneB=document.getElementById('zoneB');
+    var zoneP=document.getElementById('zoneP');
+    if(zoneB)zoneB.className='zone-big zone-banker-big';
+    if(zoneP)zoneP.className='zone-big zone-player-big';
+    if(!box)return;
+    box.className='lp-reco';
+    var r=computeRecommendation();
+    if(r.stopped){
+      box.classList.add('stopped');
+      pickEl.textContent='停';
+      infoEl.textContent='已满54局 · 停止下注';
+      return;
+    }
+    if(r.level===0){
+      pickEl.textContent='—';
+      var need = results.length<9 ? ('第'+(results.length)+'/9局') : '观察中';
+      infoEl.textContent=need;
+      return;
+    }
+    box.classList.add('lv'+r.level,'side-'+r.pick);
+    pickEl.textContent = r.pick==='B'?'庄':'闲';
+    var lvName = r.level===1?'一级':r.level===2?'二级':'三级';
+    infoEl.textContent = lvName+' · '+(r.mode==='jump'?'推跳':'跟');
+    var zone = r.pick==='B'?zoneB:zoneP;
+    if(zone) zone.classList.add('zone-reco-lv'+r.level);
+  }
+
+  /* ===== 回测:按推荐引擎逐局复盘命中率(含1/2/3级) ===== */
+  var btScope='cur';
+  function backtestOne(R){
+    var s={byLevel:{1:{n:0,hit:0},2:{n:0,hit:0},3:{n:0,hit:0}},byMode:{follow:{n:0,hit:0},jump:{n:0,hit:0}},total:{n:0,hit:0}};
+    if(!R||R.length<2) return s;
+    for(var L=1;L<R.length;L++){
+      var rec=computeRecommendation(R.slice(0,L));
+      if(!rec||rec.stopped||!rec.level||!rec.pick) continue;
+      var actual=R[L];
+      if(!actual||actual.type==='T') continue;   // 和局不计入(押注退回)
+      var hit=(rec.pick===actual.type)?1:0;
+      var lv=s.byLevel[rec.level]; if(lv){lv.n++;lv.hit+=hit;}
+      var md=s.byMode[rec.mode]; if(md){md.n++;md.hit+=hit;}
+      s.total.n++; s.total.hit+=hit;
+    }
+    return s;
+  }
+  function backtestAll(){
+    var agg=backtestOne([]);
+    store.tables.forEach(function(t){
+      var s=backtestOne(t.results||[]);
+      [1,2,3].forEach(function(k){agg.byLevel[k].n+=s.byLevel[k].n;agg.byLevel[k].hit+=s.byLevel[k].hit;});
+      ['follow','jump'].forEach(function(k){agg.byMode[k].n+=s.byMode[k].n;agg.byMode[k].hit+=s.byMode[k].hit;});
+      agg.total.n+=s.total.n;agg.total.hit+=s.total.hit;
+    });
+    return agg;
+  }
+  function btPct(h,n){return n?((h/n*100).toFixed(1)+'%'):'—';}
+  function btStat(name,obj,color,big){
+    var p=obj.n?(obj.hit/obj.n*100):0;
+    return '<div class="bt-stat'+(big?' big':'')+'" style="--c:'+color+'">'
+      +'<div class="bt-stat-top"><span class="bt-name">'+name+'</span><span class="bt-rate">'+btPct(obj.hit,obj.n)+'</span></div>'
+      +'<div class="bt-bar"><div class="bt-bar-fill" style="width:'+p.toFixed(1)+'%"></div></div>'
+      +'<div class="bt-sub">命中 '+obj.hit+' / 共 '+obj.n+' 局</div></div>';
+  }
+  function setBtScope(sc){
+    btScope=sc;
+    document.getElementById('btScopeCur').classList.toggle('is-on',sc==='cur');
+    document.getElementById('btScopeAll').classList.toggle('is-on',sc==='all');
+    renderBacktest();
+  }
+  function openBacktest(){setBtScope('cur');document.getElementById('backtestModal').classList.add('active');}
+  function closeBacktest(){document.getElementById('backtestModal').classList.remove('active');}
+  function renderBacktest(){
+    var s=(btScope==='all')?backtestAll():backtestOne(results);
+    var body=document.getElementById('btBody');
+    if(!body)return;
+    if(s.total.n===0){
+      body.innerHTML='<div class="bt-empty">暂无可回测的信号<br>需先记录足够局数(满9局后触发"跳跳连"形态)<br>产生推荐信号后才会有命中统计</div>';
+      return;
+    }
+    var html='';
+    html+=btStat('总命中率',s.total,'#ffd700',true);
+    html+='<div class="bt-sec">按信号级别</div>';
+    html+='<div class="bt-grid">';
+    html+=btStat('一级',s.byLevel[1],'#ffffff');
+    html+=btStat('二级',s.byLevel[2],'#ffd23f');
+    html+=btStat('三级',s.byLevel[3],'#ff5252');
+    html+='</div>';
+    html+='<div class="bt-sec">按推荐类型</div>';
+    html+='<div class="bt-grid two">';
+    html+=btStat('跟',s.byMode.follow,'#5b9bff');
+    html+=btStat('推跳',s.byMode.jump,'#c77dff');
+    html+='</div>';
+    body.innerHTML=html;
+  }
+
+  // export all data as a downloadable JSON backup file
+  function exportData(){
+    try{
+      var data=JSON.stringify(store,null,2);
+      var blob=new Blob([data],{type:'application/json'});
+      var url=URL.createObjectURL(blob);
+      var a=document.createElement('a');
+      var d=new Date();
+      var stamp=d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'_'+pad(d.getHours())+pad(d.getMinutes());
+      a.href=url;a.download='仟和百家乐_备份_'+stamp+'.json';
+      document.body.appendChild(a);a.click();
+      document.body.removeChild(a);
+      setTimeout(function(){URL.revokeObjectURL(url);},1000);
+      showToast('已导出备份文件');
+    }catch(e){showToast('导出失败');}
+  }
+  function pad(n){return n<10?('0'+n):(''+n);}
+
+  function renderActiveSides(){
+    var last=results.length?results[results.length-1]:null;
+    [['cell-bp','bp'],['cell-pp','pp']].forEach(function(pair){
+      var el=document.getElementById(pair[0]);
+      if(el) el.classList.toggle('is-active', !!(last&&last[pair[1]]));
+    });
+  }
+
+  function renderStats(){
+    var b=results.filter(function(r){return r.type==='B';}).length;
+    var p=results.filter(function(r){return r.type==='P';}).length;
+    var t=results.filter(function(r){return r.type==='T';}).length;
+    var bp=results.filter(function(r){return r.bp;}).length;
+    var pp=results.filter(function(r){return r.pp;}).length;
+    document.getElementById('totalCount').textContent=results.length;
+    document.getElementById('bCount').textContent=b;
+    document.getElementById('pCount').textContent=p;
+    document.getElementById('tCount').textContent=t;
+    document.getElementById('bpCount').textContent=bp;
+    document.getElementById('ppCount').textContent=pp;
+    document.getElementById('shoeNum').textContent=shoe;
+    document.getElementById('roundNum').textContent=results.length||'—';
+    var st=null,sc=0;
+    for(var i=results.length-1;i>=0;i--){
+      if(results[i].type==='T')continue;
+      if(!st){st=results[i].type;sc=1;}
+      else if(results[i].type===st)sc++; else break;
+    }
+    document.getElementById('streakInfo').textContent=st?LABELS[st]+sc:'—';
+  }
+
+  function renderBeadRoad(){
+    var grid=document.getElementById('beadRoad');var ROWS=11;
+    var n=results.length;
+    var cols=Math.max(Math.ceil(n/ROWS),6);
+    var box=grid.parentElement; // .bead-screen
+    var bh=box.clientHeight||242;
+    // 珠子大小只跟高度走(保持正常大小,不被宽度压缩);珠盘列自动加宽容纳
+    var cell=Math.max(12, Math.floor(bh/ROWS));
+    var MAX=Math.floor((window.innerWidth||360)*0.30); // 珠盘列最宽约占屏宽30%,超出则横向滑动显示最新
+    if(MAX<88)MAX=88;
+    var want=cols*cell;
+    box.style.width=Math.min(want,MAX)+'px';
+    box.style.overflowX=(want>MAX)?'auto':'hidden';
+    grid.style.gridTemplateColumns='repeat('+cols+','+cell+'px)';
+    grid.style.gridTemplateRows='repeat('+ROWS+','+cell+'px)';
+    grid.style.gridAutoFlow='column';
+    var html='';
+    for(var c=0;c<cols;c++){for(var r=0;r<ROWS;r++){
+      var idx=c*ROWS+r;
+      if(idx<n){
+        var res=results[idx];
+        var cls=res.type==='B'?'dot-b':res.type==='P'?'dot-p':'dot-t';
+        var m='';
+        if(res.bp)m+='<span class="badge-bp"></span>';
+        if(res.pp)m+='<span class="badge-pp"></span>';
+        if(res.s6)m+='<span class="badge-6">6</span>';
+        if(res.s7)m+='<span class="badge-7">7</span>';
+        html+='<div class="rcell"><div class="dot '+cls+'">'+LABELS[res.type]+m+'</div></div>';
+      }else{html+='<div class="rcell"></div>';}
+    }}
+    grid.innerHTML=html;
+    if(want>MAX){ try{box.scrollLeft=box.scrollWidth;}catch(e){} }
+  }
+
+  function buildBigRoad(){
+    var ROWS=6;var grid={};var positions=[];var lastType=null;var curCol=0,curRow=0,streakStartCol=0;
+    for(var k=0;k<results.length;k++){
+      var ty=results[k].type;
+      if(ty==='T'){ if(positions.length) positions[positions.length-1].tie++; continue; }
+      if(lastType===null){curCol=0;curRow=0;streakStartCol=0;}
+      else if(ty!==lastType){curCol=streakStartCol+1;curRow=0;while(grid[curCol+','+curRow]){curRow++;if(curRow>=ROWS){curRow=0;curCol++;}}streakStartCol=curCol;}
+      else{if(curRow+1<ROWS&&!grid[curCol+','+(curRow+1)])curRow++;else{curCol++;while(grid[curCol+','+curRow])curCol++;}}
+      var cell={type:ty,tie:0,col:curCol,row:curRow};grid[curCol+','+curRow]=cell;positions.push(cell);lastType=ty;
+    }
+    var colCount=0;positions.forEach(function(p){if(p.col+1>colCount)colCount=p.col+1;});
+    return {positions:positions,grid:grid,colCount:colCount};
+  }
+
+  function renderBigRoad(big){
+    var grid=document.getElementById('bigRoad');var ROWS=6;
+    var cols=Math.max(big.colCount+2,28);
+    grid.style.gridTemplateColumns='';
+    var map={};big.positions.forEach(function(p){map[p.col+','+p.row]=p;});
+    var html='';
+    for(var c=0;c<cols;c++){for(var rr=0;rr<ROWS;rr++){
+      var cell=map[c+','+rr];
+      if(cell){
+        var cls=cell.type==='B'?'ring-b':'ring-p';
+        var inner='';for(var ti=0;ti<(cell.tie||0);ti++)inner+='<span class="tie-slash"></span>';
+        html+='<div class="rcell"><div class="ring '+cls+'">'+inner+'</div></div>';
+      }else{html+='<div class="rcell"></div>';}
+    }}
+    grid.innerHTML=html;
+    setTimeout(function(){grid.scrollLeft=grid.scrollWidth;},10);
+  }
+
+  function logicalColumns(){
+    // 每条龙(连续同方,忽略和局)算一列, 返回各列"真实长度"数组(按出现先后)
+    // 注意: 不受大路画面 6 行拐弯影响 —— 长庄/长闲也按真实长度计
+    var cols=[];var last=null;
+    for(var k=0;k<results.length;k++){
+      var ty=results[k].type;
+      if(ty==='T')continue;
+      if(ty!==last){cols.push(1);last=ty;}
+      else cols[cols.length-1]++;
+    }
+    return cols;
+  }
+
+  function computeDerived(cols,gap){
+    // 标准下三路(优博图解版), 按逻辑列长计算:
+    //   对比列 = 当前列 - gap   (大眼gap=1看上一列, 小路gap=2看上上列, 蟑螂gap=3看前三列)
+    //   r = 当前圈在本列内的行号(0起)
+    //   路中牌(r>=1): 设对比列长 L=cols[c-gap]
+    //        L> r  拍拍连     -> 红
+    //        L==r  一厅两房   -> 蓝   (本列正好比对比列多一个)
+    //        L< r  长庄/长闲  -> 红
+    //   路头牌(r==0): 比 上一列 cols[c-1] 与 对比列 cols[c-1-gap] 的长度
+    //        相等(齐整) -> 红 ;  不等 -> 蓝
+    //   记录范围: 路中牌需 c>=gap ; 路头牌需 c>=gap+1
+    var out=[];
+    for(var c=0;c<cols.length;c++){
+      var len=cols[c];
+      for(var r=0;r<len;r++){
+        var color;
+        if(r===0){
+          if(c<gap+1)continue;
+          color=(cols[c-1]===cols[c-1-gap])?'red':'blue';
+        }else{
+          if(c<gap)continue;
+          var L=cols[c-gap];
+          color=(L===r)?'blue':'red';
+        }
+        out.push(color);
+      }
+    }
+    return out;
+  }
+  function packSequence(seq,rows){
+    var ROWS=rows||6;var grid={};var positions=[];var last=null;var col=0,row=0,startCol=0;
+    for(var i=0;i<seq.length;i++){
+      var v=seq[i];
+      if(last===null){col=0;row=0;startCol=0;}
+      else if(v!==last){col=startCol+1;row=0;while(grid[col+','+row]){row++;if(row>=ROWS){row=0;col++;}}startCol=col;}
+      else{if(row+1<ROWS&&!grid[col+','+(row+1)])row++;else{col++;while(grid[col+','+row])col++;}}
+      var cell={color:v,col:col,row:row};grid[col+','+row]=cell;positions.push(cell);last=v;
+    }
+    var colCount=0;positions.forEach(function(p){if(p.col+1>colCount)colCount=p.col+1;});
+    return {positions:positions,colCount:colCount};
+  }
+  function renderDerived(big){
+    // [id, gap, markerStyle, rows]  markerStyle: 'dot'=大眼实心, 'ring'=小路空心, 'slash'=蟑螂斜条
+    var cols=logicalColumns();
+    [['bigEye',1,'dot',6],['smallRoad',2,'ring',6],['roach',3,'slash',3]].forEach(function(d){
+      var seq=computeDerived(cols,d[1]);
+      var ROWS=d[3];
+      var packed=packSequence(seq,ROWS);
+      var style=d[2];
+      var grid=document.getElementById(d[0]);
+      var ncols=Math.max(packed.colCount+2,12);
+      grid.style.gridTemplateColumns='';
+      var map={};packed.positions.forEach(function(p){map[p.col+','+p.row]=p;});
+      var html='';
+      for(var c=0;c<ncols;c++){for(var rr=0;rr<ROWS;rr++){
+        var cell=map[c+','+rr];
+        if(cell){
+          var mark;
+          if(style==='dot'){mark='<div class="solid-dot '+(cell.color==='red'?'solid-b':'solid-p')+'"></div>';}
+          else if(style==='slash'){mark='<div class="slash-mark '+(cell.color==='red'?'slash-b':'slash-p')+'"></div>';}
+          else{mark='<div class="ring '+(cell.color==='red'?'ring-b':'ring-p')+'"></div>';}
+          html+='<div class="rcell">'+mark+'</div>';
+        }
+        else{html+='<div class="rcell"></div>';}
+      }}
+      grid.innerHTML=html;
+      setTimeout(function(){grid.scrollLeft=grid.scrollWidth;},10);
+    });
+  }
+
+  // 整块按屏幕高度等比缩放,塞进一屏(布局/比例不变,只缩放)
+  function fitScale(){ try{renderBeadRoad();}catch(e){} } // 尺寸变化时重算珠盘格子
+  window.addEventListener('resize',fitScale);
+  window.addEventListener('orientationchange',function(){setTimeout(fitScale,120);});
+  if(window.visualViewport){window.visualViewport.addEventListener('resize',fitScale);}
+
+  load(); render(); updateTableSelector(); fitScale();
+  setTimeout(fitScale,300);
+</script>
+<button onclick="bjlLogout()" style="position:fixed;left:4px;top:4px;z-index:99999;background:rgba(0,0,0,.45);color:#d4a843;border:1px solid #d4a843;border-radius:6px;font-size:10px;padding:2px 7px;opacity:.55;cursor:pointer">退出</button>
+<script>
+(function(){
+  var URL='https://tutbopofnvehjofscnom.supabase.co';
+  var KEY='sb_publishable_1GZtvCsNlQFn2Xyi5cE9_Q_Sp87vKB9';
+  var sb=null; try{ sb=window.supabase.createClient(URL,KEY); }catch(e){}
+  function devId(){ var id=localStorage.getItem('_did'); if(!id){ id='dev_'+Date.now()+'_'+Math.random().toString(36).substr(2,9); localStorage.setItem('_did',id);} return id; }
+  function auth(){ try{ return JSON.parse(localStorage.getItem('bjl_auth')||'null'); }catch(e){ return null; } }
+  function kick(r){ localStorage.removeItem('bjl_auth'); alert(r); location.replace('login.html'); }
+  async function check(){ var a=auth(); if(!a||!a.u){ location.replace('login.html'); return; }
+    if(!sb) return;
+    try{ var res=await sb.rpc('bjl_check',{p_username:a.u,p_device:devId()});
+      if(res.error) return; var d=res.data; if(d&&d.ok===false){ kick(d.reason||'登录已失效，请重新登录'); } }catch(e){}
+  }
+  window.bjlLogout=function(){ if(!confirm('确定退出登录?')) return; localStorage.removeItem('bjl_auth'); location.replace('login.html'); };
+  check(); setInterval(check, 30*1000);
+  document.addEventListener('visibilitychange',function(){ if(!document.hidden) check(); });
+})();
+</script>
+<script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});}</script>
+</body>
+</html>
