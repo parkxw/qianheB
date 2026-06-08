@@ -1,0 +1,17 @@
+{
+  "name": "仟和百家乐",
+  "short_name": "仟和百家乐",
+  "description": "百家乐路单记录与分析工具",
+  "lang": "zh-CN",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#0e0803",
+  "theme_color": "#0e0803",
+  "icons": [
+    { "src": "bjl-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "bjl-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "bjl-icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
