@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.parkxw.qianhebjl",
+    "sha256_cert_fingerprints": ["92:47:ED:5E:12:C8:67:A7:A4:4D:CA:19:C5:6B:CE:0A:9B:00:18:1C:85:A1:15:A6:9F:6A:DA:71:00:FC:F7:AA"]
+  }
+}]
